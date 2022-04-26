@@ -88,8 +88,8 @@ pushd %REPO_ROOT_FOLDER%\Build
 :: Create GitHub release ZIP + ZIP hash
 Set PSModulePath=
 7z a "%OUTPUT_FOLDER%\gsudo.v%version%.zip" %OUTPUT_FOLDER%\bin\*
-powershell -Command ECHO (Get-FileHash %OUTPUT_FOLDER%\gsudo.v%version%.zip).hash > %OUTPUT_FOLDER%\gsudo.v%version%.zip.sha256
-powershell -Command ECHO (Get-FileHash %OUTPUT_FOLDER%\gsudoSetup.msi).hash > %OUTPUT_FOLDER%\gsudoSetup.msi.sha256
+powershell -NoProfile -Command ECHO (Get-FileHash %OUTPUT_FOLDER%\gsudo.v%version%.zip).hash > %OUTPUT_FOLDER%\gsudo.v%version%.zip.sha256
+powershell -NoProfile -Command ECHO (Get-FileHash %OUTPUT_FOLDER%\gsudoSetup.msi).hash > %OUTPUT_FOLDER%\gsudoSetup.msi.sha256
 
 :: Chocolatey
 git clean %REPO_ROOT_FOLDER%\Build\Chocolatey\gsudo\Bin -xf
@@ -103,8 +103,9 @@ powershell -NoProfile -Command "(gc gsudo.nuspec.template) -replace '#VERSION#',
 echo --- >> tools\verification.txt
 echo Version Hashes for v%version% >> tools\verification.txt
 echo. >> tools\verification.txt
-powershell "Get-FileHash bin\*.* | Out-String -Width 200" >> tools\verification.txt
+powershell -NoProfile -Command "Get-FileHash bin\*.* | Out-String -Width 200" >> tools\verification.txt
 echo. >> tools\verification.txt
+powershell -NoProfile -Command "Get-childitem *.bak -Recurse | Remove-Item"
 cd ..
 choco pack gsudo\gsudo.nuspec -outdir="%OUTPUT_FOLDER%"
 
