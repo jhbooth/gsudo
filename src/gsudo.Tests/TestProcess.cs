@@ -13,8 +13,7 @@ namespace gsudo.Tests
         public uint ProcessId { get; set; }
         public int ExitCode;
 
-        static int TestNumber = 1;
-        private readonly string _testId = TestNumber++.ToString();// DateTime.Now.ToString("yyyyMMddHHmmssff");
+        private readonly string _testId = Random.Shared.Next(1,999999).ToString() ;// DateTime.Now.ToString("yyyyMMddHHmmssff");
         string _sIn => $"in{_testId}";
         string _sOut => $"out{_testId}";
 //       string _sErr => $"err{_testId}";
@@ -28,6 +27,9 @@ namespace gsudo.Tests
 
         public TestProcess(string inputScript, string shell = "cmd /k") 
         {
+            Console.WriteLine($"StdIn File: {_sIn}");
+            Console.WriteLine($"StdOut File: {_sOut}");
+
             string arguments = $"";
 
             File.WriteAllText(_batchFile,
@@ -36,7 +38,7 @@ namespace gsudo.Tests
                 $"gsudo -i medium  {shell} < \"{_sIn}\" > \"{_sOut}\" 2>&1\r\n" +
                 "exit /b %errorlevel%\r\n");
 
-            File.WriteAllText($"{_sIn}", inputScript + "\r\nExit /b %errorlevel%\r\n");
+            File.WriteAllText($"{_sIn}", inputScript + "\r\nExit %errorlevel%\r\n");
 
             _process = ProcessFactory.StartDetached(_batchFile, arguments, Environment.CurrentDirectory, false);
             _testProcessHandle = new SafeProcessHandle(_process.Handle, false);
@@ -53,25 +55,47 @@ namespace gsudo.Tests
         {
             try
             {
-                return File.ReadAllText(fileName);
+                using (var fileStream = new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                using (var textReader = new StreamReader(fileStream))
+                {
+                    return textReader.ReadToEnd();
+                }
             }
-            catch (Exception e) 
+            catch
             {
-                return e.ToString();
+                System.Threading.Thread.Sleep(2000); // Freaking wait for the output file to be freed on the CI build server.
+                using (var fileStream = new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                using (var textReader = new StreamReader(fileStream))
+                {
+                    return textReader.ReadToEnd();
+                }
             }
         }
 
 
-        public void WaitForExit(int waitMilliseconds = 10000)
+        public void WaitForExit(int waitMilliseconds = 20000)
         {
             if (!_testProcessHandle.GetProcessWaitHandle().WaitOne(waitMilliseconds))
             {
                 NativeMethods.TerminateProcess(_testProcessHandle.DangerousGetHandle(), 0);
-                Debug.WriteLine($"Process Std Output:\n{GetStdOut()}");
+                if(!_testProcessHandle.GetProcessWaitHandle().WaitOne(2000))
+                {
+                    Kill();
+                }
+
+                try
+                {
+                    Debug.WriteLine($"Process Std Output:\n{GetStdOut()}");
+                }
+                catch
+                {
+                    Console.Error.WriteLine($"Unable to read output. (file in use)");
+                }
                 //Debug.WriteLine($"Process Std Error:\n{GetStdErr()}");
 
                 Assert.Fail("Process still active!");
             }
+            System.Threading.Thread.Sleep(200);
             Debug.WriteLine($"Process Std Output:\n{GetStdOut()}");
             //Debug.WriteLine($"Process Std Error:\n{GetStdErr()}");
             //NativeMethods.GetExitCodeProcess(_testProcessHandle, out ExitCode);
@@ -81,7 +105,7 @@ namespace gsudo.Tests
 
         public void Kill()
         {
-            Process.Start("gsudo", "--debug taskkill.exe /PID " + ProcessId).WaitForExit();
+            Process.Start("taskkill.exe ", "/PID " + ProcessId).WaitForExit();
         }
     }
 

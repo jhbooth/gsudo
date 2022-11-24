@@ -23,8 +23,14 @@ namespace gsudo
 
             try
             {
-                cmd = ArgumentsHelper.ParseCommand(args);
-                Logger.Instance.Log($"Command Line: {commandLine}", LogLevel.Debug);
+                try
+                {
+                    cmd = new CommandLineParser(args).Parse();
+                }
+                finally
+                {
+                    Logger.Instance.Log($"Command Line: {commandLine}", LogLevel.Debug);
+                }
 
                 if (cmd != null)
                 {

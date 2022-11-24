@@ -57,11 +57,21 @@ namespace gsudo.Rpc
         {
             var ps = new PipeSecurity();
 
+            // _allowedSid is the input argument saying who invoked this elevated instance.
+            // Needs access to connect to this pipe.
             ps.AddAccessRule(new PipeAccessRule(
                 new SecurityIdentifier(_allowedSid),
+                PipeAccessRights.ReadWrite,
+                AccessControlType.Allow));
+
+            // WindowsIdentity.GetCurrent().User is our current elevated user.
+            // For UAC in admin-approval mode, it is the same as _allowedSid
+            // But when entering credentials (on the UAC Popup), it is not.
+            ps.AddAccessRule(new PipeAccessRule(
+                WindowsIdentity.GetCurrent().User,
                 PipeAccessRights.ReadWrite | PipeAccessRights.CreateNewInstance,
                 AccessControlType.Allow));
-            
+
             var networkSid = new SecurityIdentifier("S-1-5-2");
             // deny remote connections.
             ps.AddAccessRule(new PipeAccessRule(
@@ -69,7 +79,9 @@ namespace gsudo.Rpc
                 PipeAccessRights.FullControl, 
                 System.Security.AccessControl.AccessControlType.Deny));
 
-            var pipeName = NamedPipeNameFactory.GetPipeName(_allowedSid, _allowedPid);
+            bool isHighIntegrity = SecurityHelper.IsHighIntegrity();
+
+            var pipeName = NamedPipeNameFactory.GetPipeName(_allowedSid, _allowedPid, InputArguments.UserSid, isHighIntegrity);
             Logger.Instance.Log($"Listening on named pipe {pipeName}.", LogLevel.Debug);
 
             Logger.Instance.Log($"Access allowed only for ProcessID {_allowedPid} and children", LogLevel.Debug);
@@ -80,11 +92,19 @@ namespace gsudo.Rpc
 
             do
             {
-                using (NamedPipeServerStream dataPipe = new NamedPipeServerStream(pipeName, PipeDirection.InOut, MAX_SERVER_INSTANCES,
-                    PipeTransmissionMode.Message, PipeOptions.Asynchronous, Settings.BufferSize, Settings.BufferSize, ps))
+#if NETFRAMEWORK
+                using (NamedPipeServerStream dataPipe = new NamedPipeServerStream(
+#else
+                using (var dataPipe = System.IO.Pipes.NamedPipeServerStreamAcl.Create(
+#endif
+                    pipeName, PipeDirection.InOut, MAX_SERVER_INSTANCES, PipeTransmissionMode.Message, PipeOptions.Asynchronous, Settings.BufferSize, Settings.BufferSize, ps))
                 {
-                    using (NamedPipeServerStream controlPipe = new NamedPipeServerStream(pipeName + "_control", PipeDirection.InOut, MAX_SERVER_INSTANCES,
-                        PipeTransmissionMode.Message, PipeOptions.Asynchronous, Settings.BufferSize, Settings.BufferSize, ps))
+#if NETFRAMEWORK
+                    using (var controlPipe = new NamedPipeServerStream(
+#else
+                    using (var controlPipe = System.IO.Pipes.NamedPipeServerStreamAcl.Create(
+#endif
+                        pipeName + "_control", PipeDirection.InOut, MAX_SERVER_INSTANCES, PipeTransmissionMode.Message, PipeOptions.Asynchronous, Settings.BufferSize, Settings.BufferSize, ps))
                     {
                         Logger.Instance.Log("NamedPipeServer listening.", LogLevel.Debug);
                         Task.WaitAll(
@@ -98,7 +118,7 @@ namespace gsudo.Rpc
 
                         if (dataPipe.IsConnected && controlPipe.IsConnected && !_cancellationTokenSource.IsCancellationRequested)
                         {
-                            var connection = new Connection(controlPipe, dataPipe);
+                            var connection = new Connection(controlPipe, dataPipe, isHighIntegrity);
 
                             ConnectionKeepAliveThread.Start(connection);
 
@@ -153,6 +173,13 @@ namespace gsudo.Rpc
             ProcessModule clientProcessMainModule = null;
 
             clientProcess = Process.GetProcessById(clientPid);
+
+            if (SecurityHelper.GetCurrentIntegrityLevel() <= (int)IntegrityLevel.Medium)
+            {
+                // not much to protect.
+                return true;
+            }
+            
             clientProcessMainModule = clientProcess.MainModule;
 
             if (_allowedExeLength != -1)
@@ -172,7 +199,7 @@ namespace gsudo.Rpc
                         LogLevel.Error);
                     return false;
                 }
-            }
+            }            
 #if !DEBUG
             if (clientProcessMainModule != null) 
             {

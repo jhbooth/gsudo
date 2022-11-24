@@ -17,6 +17,7 @@ namespace gsudo.Helpers
         /// </summary>
         public static void EnableAssemblyLoadFix()
         {
+#if NETFRAMEWORK
             string exeName = ProcessHelper.GetOwnExeName();
             string exeNamePath = Path.GetDirectoryName(exeName);
 
@@ -35,16 +36,17 @@ namespace gsudo.Helpers
             if (File.Exists(target))
                 return Assembly.LoadFrom(target);
             return null;
+#endif
         }
 
         public static string ResolveSymbolicLink(string symLinkFullPath)
         {
             return GetFinalPathName(symLinkFullPath)
-                    .Replace("\\\\?\\UNC\\", "\\\\")
-                    .Replace("\\\\?\\", "")
+                    .ReplaceOrdinal("\\\\?\\UNC\\", "\\\\")
+                    .ReplaceOrdinal("\\\\?\\", "")
                 ;
         }
-        public static string GetFinalPathName(string path)
+        private static string GetFinalPathName(string path)
         {
             var h = Native.FileApi.CreateFile(path,
                 Native.FileApi.FILE_READ_EA,
@@ -77,3 +79,4 @@ namespace gsudo.Helpers
         }
     }
 }
+

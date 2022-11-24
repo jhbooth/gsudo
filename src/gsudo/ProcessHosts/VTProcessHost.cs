@@ -23,6 +23,8 @@ namespace gsudo.ProcessHosts
         private Connection _connection;
         private static Encoding PseudoConsoleEncoding = new System.Text.UTF8Encoding(false);
 
+        public bool SupportsSimultaneousElevations { get; } = false;
+
         public async Task Start(Connection connection, ElevationRequest request)
         {
             if (Settings.SecurityEnforceUacIsolation)
@@ -153,9 +155,9 @@ namespace gsudo.ProcessHosts
 
                         if (InputArguments.Debug)
                             Console.Write(s
-                                .Replace('\a', ' ') //  no bell sounds please
-                                .Replace("\r", "\\r")
-                                .Replace("\n", "\\n")
+                                .ReplaceOrdinal("\a", " ") //  no bell sounds please
+                                .ReplaceOrdinal("\r", "\\r")
+                                .ReplaceOrdinal("\n", "\\n")
                                 );
                     }
                 }

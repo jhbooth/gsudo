@@ -2,6 +2,9 @@
 using System.IO;
 using System.IO.Pipes;
 using System.Runtime.Serialization.Formatters.Binary;
+#if NETCOREAPP
+using System.Text.Json;
+#endif
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -11,11 +14,12 @@ namespace gsudo.Rpc
     {
         private PipeStream _dataStream;
         private PipeStream _controlStream;
-
-        public Connection(PipeStream ControlStream, PipeStream DataStream)
+        public bool IsHighIntegrity { get; }
+        public Connection(PipeStream ControlStream, PipeStream DataStream, bool isHighIntegrity)
         {
             _dataStream = DataStream;
             _controlStream = ControlStream;
+            IsHighIntegrity = isHighIntegrity;
         }
 
         public Stream DataStream => _dataStream;
@@ -58,6 +62,7 @@ namespace gsudo.Rpc
 
         public async Task WriteElevationRequest(ElevationRequest elevationRequest)
         {
+#if NETFRAMEWORK
             // Using Binary instead of Newtonsoft.JSON to reduce load times.
             var ms = new System.IO.MemoryStream();
             new BinaryFormatter()
@@ -71,6 +76,13 @@ namespace gsudo.Rpc
             await ControlStream.WriteAsync(lengthArray, 0, sizeof(int)).ConfigureAwait(false);
             await ControlStream.WriteAsync(ms.ToArray(), 0, (int)ms.Length).ConfigureAwait(false);
             await ControlStream.FlushAsync().ConfigureAwait(false);
+#else
+            byte[] utf8Json = JsonSerializer.SerializeToUtf8Bytes(elevationRequest, ElevationRequestJsonContext.Default.ElevationRequest);
+
+            await ControlStream.WriteAsync(BitConverter.GetBytes(utf8Json.Length), 0, sizeof(int)).ConfigureAwait(false);
+            await ControlStream.WriteAsync(utf8Json, 0, utf8Json.Length).ConfigureAwait(false);
+            await ControlStream.FlushAsync().ConfigureAwait(false);
+#endif
         }
 
         public void Dispose()

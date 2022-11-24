@@ -20,34 +20,33 @@ It is designed so it is easy to install, easy to use, and feels familiar with ot
 ### Features
 
 - It is a proper `sudo for windows`:
-  - Executes the desired command with elevated permissions.
+  - Executes the desired command with elevated permissions (or as another user).
   - Elevated commands are shown in the current user-level console. No new window. (Unless you specify `-n`)
   - Full console support: Colors, full keyboard, auto-completion, etc.
   - Supports I/O redirection.
   - Handles Ctrl-C properly
   - Supports worldwide encodings & codepages
 - Uses the current shell to interpet the command to elevate:
-  - `gsudo {command}` uses a new instance of the invoking shell to elevate the command.
-  
+  - `gsudo {command}` uses a new instance of the invoking shell to elevate the command.  
     For example, in PowerShell `gsudo mkdir x` becames `pwsh -c "mkdir x"`, while in CMD it becames `cmd /c "mkdir x"`.
   - Supported Shells:
     - [CMD](usage)
     - [PowerShell](usage/powershell)
     - [WSL](usage/wsl)
-    - [Bash for Windows (MSYS2 / MinGW / Git-Bash / Cygwin)](usage/bash-for-windows) 
+    - [Bash for Windows (MSYS2 / MinGW / Git-Bash / Cygwin)](usage/bash-for-windows)
     - Yori
     - Take Command
-
-- If no command is specified, it starts an elevated shell.
- 
+    - NuShell
+- If no command is specified, it starts an elevated shell. 
 - [Credentials cache](#credentials-cache): `gsudo` can elevate many times showing only one UAC pop-up if the user opts-in to enable the cache.
 - Supports being used on scripts:
   - Returns the command exit code (`%errorlevel%`). If `gsudo` fails to elevate, the exit code will be 999.
   - If `gsudo` is invoked from an already elevated console, it will run the command as-is (won't throw error). So, don't worry if you run `gsudo` or a script that uses `gsudo` when already elevated. (No elevation is required, no UAC popup)
-- `gsudo !!` elevates the last run command. Works on CMD, Git-Bash, MinGW, MSYS2, Cygwin (and PowerShell with [gsudo module](usage/powershell#powershell-profile-config) only)
   
-Read [How to Use](usage) for your favorite shell to see additional features. 
+- Use `gsudo !!` to elevate the last ran command. Works on CMD, Git-Bash, MinGW, MSYS2, Cygwin (and PowerShell with [gsudo module](usage/powershell#powershell-profile-config) only)
+  
+Read [How to Use](usage) for your favorite shell to see additional features.
 
 ### Demo
 
-![Demo](../../demo.gif)
+[![Demo](../../demo.gif)](../../demo.gif)

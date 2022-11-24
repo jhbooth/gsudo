@@ -30,7 +30,7 @@ namespace gsudo.ProcessRenderers
 
             _connection = connection;
             _elevationRequest = elevationRequest;
-            Environment.SetEnvironmentVariable("prompt", Environment.ExpandEnvironmentVariables(elevationRequest.Prompt));
+            ConsoleHelper.SetPrompt(elevationRequest, connection.IsHighIntegrity);
 
             ProcessApi.CreateProcessFlags dwCreationFlags = ProcessApi.CreateProcessFlags.CREATE_SUSPENDED;
 
@@ -84,7 +84,8 @@ namespace gsudo.ProcessRenderers
                 }
 
                 Logger.Instance.Log("Process token successfully substituted.", LogLevel.Debug);
-                _ = _connection.FlushAndCloseAll();
+                _connection.DataStream.Close();
+                _connection.ControlStream.Close();
 
                 return GetResult();
             }

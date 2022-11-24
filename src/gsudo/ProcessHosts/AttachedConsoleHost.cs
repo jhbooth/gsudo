@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Security.Principal;
 using System.Threading;
 using System.Threading.Tasks;
 using gsudo.Helpers;
@@ -14,6 +15,8 @@ namespace gsudo.ProcessHosts
     // This mode is not enabled unless you use --attached.
     class AttachedConsoleHost : IProcessHost
     {
+        public bool SupportsSimultaneousElevations { get; } = false;
+
         public async Task Start(Connection connection, ElevationRequest elevationRequest)
         {
             var exitCode = 0;
@@ -28,10 +31,18 @@ namespace gsudo.ProcessHosts
                 if (Native.ConsoleApi.AttachConsole(pid))
                 {
                     Native.ConsoleApi.SetConsoleCtrlHandler(ConsoleHelper.IgnoreConsoleCancelKeyPress, true);
-                    System.Environment.CurrentDirectory = elevationRequest.StartFolder;
 
                     try
                     {
+                        try
+                        {
+                            System.Environment.CurrentDirectory = elevationRequest.StartFolder;
+                        }
+                        catch (UnauthorizedAccessException ex)
+                        {
+                            throw new ApplicationException($"User \"{WindowsIdentity.GetCurrent().Name}\" can not access current directory \"{elevationRequest.StartFolder}\"");
+                        }
+
                         var process = Helpers.ProcessFactory.StartAttached(elevationRequest.FileName, elevationRequest.Arguments);
 
                         WaitHandle.WaitAny(new WaitHandle[] { process.GetProcessWaitHandle(), connection.DisconnectedWaitHandle });
@@ -40,9 +51,14 @@ namespace gsudo.ProcessHosts
 
                         await Task.Delay(1).ConfigureAwait(false);
                     }
+                    catch (ApplicationException ex)
+                    {
+                        await connection.ControlStream.WriteAsync($"{Constants.TOKEN_ERROR}Server Error: {ex.Message}\r\n{Constants.TOKEN_ERROR}").ConfigureAwait(false);
+                        exitCode = Constants.GSUDO_ERROR_EXITCODE;
+                    }
                     catch (Exception ex)
                     {
-                        await connection.ControlStream.WriteAsync($"{Constants.TOKEN_ERROR}Server Error:{ex.ToString()}\r\n{Constants.TOKEN_ERROR}").ConfigureAwait(false);
+                        await connection.ControlStream.WriteAsync($"{Constants.TOKEN_ERROR}Server Error: {ex.ToString()}\r\n{Constants.TOKEN_ERROR}").ConfigureAwait(false);
                         exitCode = Constants.GSUDO_ERROR_EXITCODE;
                     }
                 }

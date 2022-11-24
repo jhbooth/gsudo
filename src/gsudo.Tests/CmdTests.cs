@@ -10,18 +10,21 @@ using System.Threading;
 namespace gsudo.Tests
 {
     [TestClass]
-    public class CmdTests : TestBase
+    public class CmdTests
     {
+        [ClassInitialize]
+        public static void ClassInitialize(TestContext context) => TestShared.StartCacheSession();
+
         [TestMethod]
         public void Cmd_DebugTestHelper()
         {
             var p = new TestProcess("start cmd");
         }
 
-        [TestMethod]
+        //[TestMethod]
         public void Cmd_AdminUserTest()
         {
-            Assert.IsTrue(ProcessHelper.IsAdministrator(), "This test suite is intended to be run as an administrator, otherwise it will not work.");
+            Assert.IsTrue(SecurityHelper.IsAdministrator(), "This test suite is intended to be run as an administrator, otherwise it will not work.");
         }
 
         [TestMethod]
@@ -39,10 +42,10 @@ namespace gsudo.Tests
             // TODO: Test --raw, --vt, --attached
             var testDir = Environment.CurrentDirectory;
             var p1 = new TestProcess(
-                             $"\"{testDir}\\gsudo\" cmd /c cd \r\n"
+                                       $"\"{testDir}\\gsudo\" cmd /c cd \r\n" // => show current path
                                      + $"cd .. \r\n"
                                      + $"\"{testDir}\\gsudo\" cmd /c cd \r\n"
-            );
+            ); ;
             p1.WaitForExit();
 
             var otherDir = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory,".."));
@@ -99,12 +102,12 @@ namespace gsudo.Tests
         public void Cmd_WindowsAppWaitTest()
         {
             bool stillWaiting = false;
-            var p = new TestProcess("gsudo \"c:\\Program Files (x86)\\Windows NT\\Accessories\\wordpad.exe\"");
+            var p = new TestProcess("gsudo -w \"c:\\Program Files (x86)\\Windows NT\\Accessories\\wordpad.exe\"");
             try
             {
                 p.WaitForExit(3000);
             }
-            finally
+            catch
             {
                 stillWaiting = true;
             }
@@ -117,16 +120,17 @@ namespace gsudo.Tests
         [TestMethod]
         public void Cmd_WindowsAppNoWaitTest()
         {
-            var p = new TestProcess("gsudo notepad");
+            var p = new TestProcess("gsudo \"c:\\Program Files (x86)\\Windows NT\\Accessories\\wordpad.exe\"");
             try
             {
                 p.WaitForExit();
             }
             finally
             {
-                Process.Start("gsudo", "taskkill.exe /FI \"WINDOWTITLE eq Untitled - Notepad\" ").WaitForExit();
-                p.WaitForExit();
+                Process.Start("gsudo", "taskkill.exe /IM Wordpad.exe").WaitForExit();
             }
+
+            p.WaitForExit();
         }
 
         [TestMethod]
@@ -150,7 +154,7 @@ namespace gsudo.Tests
             var p = new TestProcess("gsudo --debug qaqswswdewfwerferfwe");
             p.WaitForExit();
             Assert.AreNotEqual(0, p.ExitCode, p.GetStdOut());
-            Assert.AreNotEqual(0, 999, p.GetStdOut());
+            Assert.AreNotEqual(999, p.ExitCode, p.GetStdOut());
         }
 
         [TestMethod]
@@ -165,13 +169,9 @@ namespace gsudo.Tests
         }
     }
 
-    [TestClass]
-    public class TestBase
+    public static class TestShared
     {
-        public TestContext TestContext { get; set; }
-
-        [AssemblyInitialize]
-        public static void AssemblyInitialize(TestContext context)
+        public static void StartCacheSession()
         {
             // Start elevated service.
             var callingSid = WindowsIdentity.GetCurrent().User.Value;
@@ -181,11 +181,11 @@ namespace gsudo.Tests
                 new ProcessStartInfo()
                 {
                     FileName = "cmd",
-                    Arguments = $" /c start \"gsudo Service\" \"{gsudoPath}\" --debug cache on --pid 0 --duration 0:1:0 ",
+                    Arguments = $" /c start \"gsudo Service\" \"{gsudoPath}\" \"{gsudoPath}\" --debug cache on --pid 0 --duration 0:1:0 ",
                     Verb = "RunAs"
                 }
             )?.WaitForExit();
-            Thread.Sleep(500);
+            Thread.Sleep(2000);
         }
     }
 }

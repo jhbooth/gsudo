@@ -164,7 +164,7 @@ namespace gsudo.Native
             [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)] public string szExeFile;
         };
 
-        [SuppressUnmanagedCodeSecurity, HostProtection(SecurityAction.LinkDemand, MayLeakOnAbort = true)]
+        [SuppressUnmanagedCodeSecurity]
         internal sealed class SafeSnapshotHandle : SafeHandleMinusOneIsInvalid
         {
             internal SafeSnapshotHandle() : base(true)
@@ -230,5 +230,8 @@ namespace gsudo.Native
         [DllImport("kernel32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         internal static extern bool TerminateProcess(IntPtr hProcess, uint uExitCode);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        internal static extern UInt32 WaitForSingleObject(IntPtr hHandle, UInt32 dwMilliseconds);
     }
 }
