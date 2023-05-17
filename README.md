@@ -12,7 +12,7 @@ Just prepend `gsudo` (or the `sudo` alias) to your command and it will run eleva
 
 **Why use `gsudo` instead of `some-other-sudo`?**
 
-`gsudo` is very easy to install and use. Its similarities with Unix/Linux sudo make the experience a breeze. It detects your current shell and elevates accordingly (as native shell commands). (Supports `Cmd`, `PowerShell`, `git-bash`, `MinGW`, `Cygwin`, `Yori`, `Take Command`)
+`gsudo` is very easy to install and use. Its similarities with Unix/Linux sudo make the experience a breeze. It detects your current shell and elevates accordingly (as native shell commands). (Supports `Cmd`, `PowerShell`, `WSL`, `git-bash`, `MinGW`, `Cygwin`, `Yori`, `Take Command`)
 
 ## Table of contents
 
@@ -48,8 +48,8 @@ Just prepend `gsudo` (or the `sudo` alias) to your command and it will run eleva
 
 ## Please support gsudo! 💵
 
-- Please consider [sponsoring gsudo](https://gerardog.github.io/gsudo/sponsor). It helps to cover the yearly renewal of the code-signing certificate.
-- No money? No problem! Please give us a star! ⭐
+- Please give us a star! ⭐
+- Maybe [sponsoring gsudo](https://gerardog.github.io/gsudo/sponsor)?
 
 ---
 
@@ -104,7 +104,7 @@ Security options:
  -k                    # Kills all cached credentials. The next time gsudo is run a UAC popup will be appear.
 
 Shell related options:
- -d | --direct         # Skips Shell detection. Asume CMD shell or CMD {command}.
+ -d | --direct         # Skips Shell detection. Assume CMD shell or CMD {command}.
  --loadProfile         # When elevating PowerShell commands, load user profile.
 
 Other options:
@@ -168,7 +168,7 @@ There are 3 possible syntaxes to elevate commands.
    ```
 
    - Avoids serializing the output objects if the result is not captured, which can improve performance like 100x when working with big outputs.
-   - If { scriptblock } is ommitted, it elevates PowerShell.
+   - If { scriptblock } is omitted, it elevates PowerShell.
 
 2. **Invoke-gsudo** wrapper function:
 
@@ -305,9 +305,9 @@ How to use, very briefly:
 
   No. `gsudo` reminds of the original sudo regarding user expectations. Many `sudo` features are `*nix` specific and could never have a `Windows` counterpart. Other features (such as `sudoers`) could potentially be implemented but are not at this point.
 
-- Does it work in Windows 7/8?
+- What are the requirements? Does it work in Windows 7/8?
 
-  Yes, it works from Win7 SP1 onwards, except the credentials cache.
+  It works on Win7 SP1 onwards. Some features may only work in Windows 10/11, like elevating as TrustedInstaller.
 
 - How do I return to the previous security level after using gsudo?
 

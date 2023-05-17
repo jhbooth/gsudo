@@ -57,7 +57,7 @@ namespace gsudo.Helpers
 
         public static Process GetShellProcess(this Process process)
         {
-            if (ShellHelper.InvokingShell!=Shell.Bash)
+            if (!ShellHelper.InvokingShell.In(Shell.Bash, Shell.BusyBox))
                 return GetParentProcessExcludingShim(process);
 
             // Unable to get a caller pid for the cache.
@@ -69,35 +69,36 @@ namespace gsudo.Helpers
 
         public static int GetCacheableRootProcessId(this Process process)
         {
-            if (ShellHelper.InvokingShell == Shell.Bash)
+            if (ShellHelper.InvokingShell.In(Shell.Bash, Shell.BusyBox))
             {
-                var parent = GetParentProcessId(process);
-                if (parent == 0) 
+                var parentId = GetParentProcessId(process);
+                if (parentId == 0) 
                     return process.Id;
 
                 try
                 {
-                    var pparent = Process.GetProcessById(parent);
-                    if (pparent.MainModule.FileName.EndsWith("\\BASH.EXE", StringComparison.OrdinalIgnoreCase))
+                    var parentProcess = Process.GetProcessById(parentId);
+                    var parentProcessFileName = System.IO.Path.GetFileNameWithoutExtension(parentProcess.MainModule.FileName) ;
+                    if (parentProcessFileName.In("BASH", "ASH", "SH", "BUSYBOX", "BUSYBOX64"))
                     {
-                        var grandparent = GetParentProcess(pparent);
-                        if (!grandparent.MainModule.FileName.EndsWith("\\BASH.EXE", StringComparison.OrdinalIgnoreCase))
+                        var grandparentFileName = System.IO.Path.GetFileNameWithoutExtension(GetParentProcess(parentProcess).MainModule.FileName);
+                        if (!grandparentFileName.Equals(parentProcessFileName, StringComparison.OrdinalIgnoreCase)) 
                         {
-                            return parent;
+                            return parentId;
                         }
-                        return GetCacheableRootProcessId(pparent);
+                        return GetCacheableRootProcessId(parentProcess);
                     }
                 }
                 catch
                 { }
 
-                return parent;
+                return parentId;
             }
 
             int pid = process.Id;
             Process p = null;
 
-            while (p == null)
+            while (p == null && pid > 0)
             {
                 pid = GetParentProcessId(pid);
                 try
@@ -114,7 +115,8 @@ namespace gsudo.Helpers
 
                     if (filename != null && !IsShim(filename))
                         break;
-                }                
+                }
+                p = null;
             }
         
             return pid;

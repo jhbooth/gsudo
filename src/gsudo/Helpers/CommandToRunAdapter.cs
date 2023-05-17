@@ -195,6 +195,7 @@ namespace gsudo.Helpers
                         return new[] { _currentShellFileName, // wsl.exe
                                         "-d", wsl_distro,
                                         "-u", wsl_user,
+                                        $"--cd \"{Environment.CurrentDirectory }\"",
                                         "--" }
                                         .Concat(args).ToArray();
                     }
@@ -205,6 +206,14 @@ namespace gsudo.Helpers
                         return new[] { _currentShellFileName };
                     else
                         return new[] { _currentShellFileName, "-c",
+                            $"\"{ String.Join(" ", args).ReplaceOrdinal("\"", "\\\"") }\"" };
+                }
+                else if (_currentShell == Shell.BusyBox)
+                {
+                    if (isShellElevation)
+                        return new[] { _currentShellFileName, "sh" };
+                    else
+                        return new[] { _currentShellFileName, "sh", "-c",
                             $"\"{ String.Join(" ", args).ReplaceOrdinal("\"", "\\\"") }\"" };
                 }
                 else if (_currentShell == Shell.TakeCommand)
@@ -395,6 +404,19 @@ namespace gsudo.Helpers
                 postCommands.Add("set errl = !ErrorLevel!");
                 postCommands.Add("pause");
                 postCommands.Add("exit /b !errl!");
+            }
+
+            bool bNetworkfolder = Environment.CurrentDirectory.StartsWith(@"\\", StringComparison.Ordinal);
+            bool bIsCmdExe = ArgumentsHelper.UnQuote(command.First()).EndsWith("cmd.exe", StringComparison.OrdinalIgnoreCase);
+
+            if (bNetworkfolder && (bIsCmdExe || mustWrap))
+            {
+	            Logger.Instance.Log($"The current directory '{Environment.CurrentDirectory}' is a network folder. Mapping as a network drive.", LogLevel.Debug);
+	            // Prepending PUSHD command. It maps network folders magically!
+	            preCommands.Insert(0, $"pushd \"{Environment.CurrentDirectory}\"");
+	            postCommands.Add("popd");
+	            // And set current directory to local folder to avoid CMD warning message
+	            Environment.CurrentDirectory = Environment.GetEnvironmentVariable("SystemRoot");
             }
 
             if (mustWrap || preCommands.Any() || postCommands.Any())

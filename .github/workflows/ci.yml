@@ -14,6 +14,9 @@ on:
       version_MajorMinorPatch:
         description: "Version (without prerelease tag)"
         value: ${{ jobs.build.outputs.version_MajorMinorPatch }}
+      is_prerelease:
+        description: "Version prerelease ($true or $false)"
+        value: ${{ jobs.build.outputs.is_prerelease }}
 
 jobs:
   test:
@@ -70,14 +73,20 @@ jobs:
       with: 
         fetch-depth: 0
     - name: Install dependencies
-      run: choco install GitVersion.Portable ilmerge --confirm --no-progress
+      run: choco install GitVersion.Portable --version 5.6.11 --confirm --no-progress; choco install il-repack --confirm --no-progress
     - name: Update project version
       run: gitversion /l console /output buildserver /updateAssemblyInfo /verbosity minimal
     - name: Get project version
       id: getversion
       run: |
-           echo "::set-output name=version::$(gitversion /showvariable LegacySemVer)"
-           echo "::set-output name=version_MajorMinorPatch::$(gitversion /showvariable MajorMinorPatch)"    
+           echo "version=$(gitversion /showvariable LegacySemVer)" >> "$env:GITHUB_OUTPUT"
+           echo "version_MajorMinorPatch=$(gitversion /showvariable MajorMinorPatch)" >> "$env:GITHUB_OUTPUT"
+           if ("$(gitversion /showvariable PreReleaseTag)" -eq "") {
+             echo "is_prerelease=false" >> "$env:GITHUB_OUTPUT"
+           } else {
+             echo "is_prerelease=true" >> "$env:GITHUB_OUTPUT"
+           }
+           get-content  "$env:GITHUB_OUTPUT"
     - name: Build
       run: ./build/01-build.ps1
     - name: Upload build artifacts
@@ -88,3 +97,4 @@ jobs:
     outputs:
       version:                 ${{ steps.getversion.outputs.version }}
       version_MajorMinorPatch: ${{ steps.getversion.outputs.version_MajorMinorPatch }}
+      is_prerelease: ${{ steps.getversion.outputs.is_prerelease }}

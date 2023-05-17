@@ -1,6 +1,14 @@
+if ([System.Environment]::GetEnvironmentVariable("PROCESSOR_ARCHITECTURE", "Machine") -eq "ARM64") { 
+	$architecture='arm64' 
+} elseif (! [System.Environment]::Is64BitOperatingSystem) {
+	$architecture='x86' 
+} else { 
+	$architecture='x64'
+}
+
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $release = Invoke-RestMethod -Method Get -Uri "https://api.github.com/repos/gerardog/gsudo/releases/latest"
-$asset = $release.assets | Where-Object name -like "gsudoSetup.msi"
+$asset = $release.assets | Where-Object name -like "gsudo.setup.$architecture.msi"
 $fileName = "$env:TEMP\$($asset.name)"
 
 Write-Output "Downloading $($asset.name)"
@@ -35,9 +43,10 @@ else
 	Write-Output "Please restart your consoles to use gsudo!`n"
 	
 	"PowerShell users: To use enhanced gsudo and Invoke-Gsudo cmdlet, add the following line to your `$PROFILE"
-	"  Import-Module '${Env:ProgramFiles(x86)}\gsudo\gsudoModule.psd1'"
+	"  Import-Module '${Env:ProgramFiles}\gsudo\Current\gsudoModule.psd1'"
 	"Or run: "
-	"  Write-Output `"``nImport-Module '${Env:ProgramFiles(x86)}\gsudo\gsudoModule.psd1'`" | Add-Content `$PROFILE"
+	"  New-Item -Type Directory (`$PROFILE | Split-Path) -ErrorAction Ignore"
+	"  Write-Output `"``nImport-Module '${Env:ProgramFiles}\gsudo\Current\gsudoModule.psd1'`" | Add-Content `$PROFILE"
 	
 	Remove-Item $fileName 
 }
